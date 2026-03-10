@@ -55,6 +55,7 @@
       display:flex;
       gap:10px;
       align-items:center;
+      flex-wrap:wrap;
     }
 
     .badge{
@@ -151,6 +152,29 @@
       color: var(--primary);
     }
 
+    .modeTabs{
+      display:flex;
+      gap:8px;
+      margin: 6px 0 12px;
+      flex-wrap:wrap;
+    }
+
+    .modeBtn{
+      border:1px solid var(--line);
+      background:#fff;
+      padding:9px 14px;
+      border-radius:999px;
+      cursor:pointer;
+      font-weight:800;
+      font-size:13px;
+    }
+
+    .modeBtn.active{
+      background: var(--primary);
+      color:#fff;
+      border-color: var(--primary);
+    }
+
     .layout{
       display:grid;
       grid-template-columns: 340px 1fr;
@@ -234,7 +258,7 @@
     }
 
     .tabPanel{
-      height: calc(100vh - 230px);
+      height: calc(100vh - 260px);
       min-height: 520px;
       overflow:auto;
       padding-right:6px;
@@ -379,6 +403,15 @@
       font-size:15px;
     }
 
+    .emptyBox{
+      border:1px dashed var(--line);
+      border-radius:12px;
+      padding:18px;
+      color:var(--muted);
+      background:#fafbff;
+      font-size:13px;
+    }
+
     .printArea{ display:none; }
 
     @page{
@@ -412,13 +445,6 @@
 
     .printMeta div{
       line-height:1.4;
-    }
-
-    .printBody{
-      font-size: 12px;
-      line-height: 1.5;
-      font-family: "Noto Sans KR", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      word-break: keep-all;
     }
 
     .printProgram{
@@ -490,15 +516,20 @@
       <span class="badge">선택 → 배정 → 총합 → 톡 복사</span>
     </h1>
 
+    <div class="modeTabs">
+      <button class="modeBtn active" id="modeLesson">수업용</button>
+      <button class="modeBtn" id="modeBooth">부스용</button>
+    </div>
+
     <div class="row">
-      <label>날짜
-        <input id="date" type="text" placeholder="예: 12/22" />
-      </label>
       <label>학교명
         <input id="school" type="text" placeholder="예: 대전 탄방중" />
       </label>
       <label>차시
         <input id="session" type="text" placeholder="예: 2차시" />
+      </label>
+      <label>날짜
+        <input id="date" type="text" placeholder="예: 12/22" />
       </label>
       <label>인원(전체)
         <input id="people" type="number" min="0" step="1" placeholder="예: 30" />
@@ -544,9 +575,9 @@
         <div class="contentTop">
           <div>
             <h2 style="margin:0;">선택된 프로그램 배정</h2>
-            <div class="help">노트북/태블릿/스마트폰/인원은 한 줄, 메모는 아래에 입력합니다.</div>
+            <div class="help" id="modeHelpAssign">노트북/태블릿/스마트폰/인원은 한 줄, 메모는 아래에 입력합니다.</div>
           </div>
-          <div class="mini">현재 <span class="count" id="selectedCount2">0</span>개 선택</div>
+          <div class="mini"><span id="modeLabelAssign">수업용</span> 현재 <span class="count" id="selectedCount2">0</span>개 선택</div>
         </div>
 
         <div id="assignCards"></div>
@@ -556,7 +587,7 @@
         <div class="contentTop">
           <div>
             <h2 style="margin:0;">교구 총합</h2>
-            <div class="help">노트북/태블릿/스마트폰은 항상 표시됩니다. (여분도 여기서 입력 가능)</div>
+            <div class="help" id="modeHelpTotals">노트북/태블릿/스마트폰은 항상 표시됩니다. (여분도 여기서 입력 가능)</div>
           </div>
         </div>
 
@@ -570,7 +601,7 @@
         </div>
 
         <div class="sectionTop">
-          <h2>💡추가</h2>
+          <h2 id="extrasTitle">💡추가</h2>
           <button class="btn no-print" id="btnAddExtra">+ 추가 교구</button>
         </div>
 
@@ -595,107 +626,164 @@
 </div>
 
 <script>
-  const STORAGE_KEY = "able_equipment_check_v_final_v4";
+  const STORAGE_KEY = "able_equipment_check_v_mode_split";
 
-  const PROGRAM_MASTER = [
-    { id:"p01", name:"신소재(메타물질)", notes:"신소재 키트(나무판, 풍량 측정기, 칼·가위, 테이프, 글루건, 색종이, 수수깡), 우드락판, 선풍기, 멀티탭, 보조배터리, AAA건전지\n🔎 소모품: 색종이, 수수깡, 글루건심" },
-    { id:"p02", name:"반도체", notes:"반도체 키트(브레드보드 세트, 배터리케이스, 수수케이블 13개), AA건전지, 여분(수수케이블, 배터리케이스, 소자 부품)\n회로 설계: 태블릿" },
-    { id:"p03", name:"의공학", notes:"의공학 키트(거짓말 탐지기, GSR, 심전도), 노트북, 충전기·마우스, 멀티탭, AA건전지\n🔎 소모품: 심전도 패치, 암수케이블, AA건전지\n* 중등: 메이키메이키 키트(보드, 메이키보드 케이블, 악어클립, 호일, 알루미늄 테이프)" },
-    { id:"p04", name:"스마트 팩토리", notes:"스마트팜용 유킷, 기물, 스마트폰" },
-    { id:"p05", name:"신재생 에너지", notes:"신재생 키트(레고브릭, 절연테이프, 색테이프, 네임펜, 글루건), 할로겐등, 태양광판+USB선풍기, 바퀴, 멀티탭\n* 창작: 똑상(2)키트(글루건, 가위, 칼), 멀티탭, 폼보드" },
-    { id:"p06", name:"제약 연구", notes:"제약카드 10세트, 전자기기(태블릿·스마트폰)" },
-    { id:"p07", name:"머신러닝", notes:"노트북, 충전기·마우스, 멀티탭, 포스트잇\n* 컴퓨터실: 웹캠, 포스트잇\n* 초등: 태블릿" },
+  // =========================
+  // 수업용 프로그램
+  // =========================
+  const LESSON_PROGRAM_MASTER = [
+    { id:"p01", name:"신소재(메타물질)", notes:"신소재 키트(나무판, 풍량 측정기, 칼·가위, 테이프, 글루건, 색종이, 수수깡), 우드락판, 선풍기, 멀티탭, 보조배터리, AAA건전지\n🔎 소모품: 색종이, 수수깡, 글루건심\n📚 교과 연계(화학-신소재): 교과 현수막" },
+    { id:"p02", name:"반도체", notes:"반도체 키트(브레드보드 세트, 배터리케이스, 수수케이블 13개), AA건전지, 여분(수수케이블, 배터리케이스, 소자 부품)\n회로 설계: 태블릿\n📚 교과 연계(물리-반도체): 교과 현수막" },
+    { id:"p03", name:"의공학", notes:"의공학 키트(거짓말 탐지기, GSR, 심전도), 노트북, 충전기·마우스, 멀티탭, AA건전지\n🔎 소모품: 심전도 패치, 암수케이블, AA건전지\n* 중등: 메이키메이키 키트(보드, 메이키보드 케이블, 악어클립, 호일, 알루미늄 테이프)\n📚 교과 연계(생명-의공학): 교과 현수막" },
+    { id:"p04", name:"스마트 팩토리", notes:"스마트팜용 유킷, 기물, 스마트폰\n🌿 지속가능발전(스마트 농업 메이커스): 지속가능 현수막" },
+    { id:"p05", name:"신재생 에너지", notes:"신재생 키트(레고브릭, 절연테이프, 색테이프, 네임펜, 글루건), 할로겐등, 태양광판+USB선풍기, 바퀴, 멀티탭\n* 창작: 똑상(2)키트(글루건, 가위, 칼), 멀티탭, 폼보드\n🌿 지속가능발전(탄소중립 에너지 챌린지): 지속가능 현수막" },
+    { id:"p06", name:"제약 연구", notes:"제약카드 10세트, 전자기기(태블릿·스마트폰)\n📚 교과 연계(화학-제약): 교과 현수막" },
+    { id:"p07", name:"머신러닝", notes:"노트북, 충전기·마우스, 멀티탭, 포스트잇\n* 컴퓨터실: 웹캠, 포스트잇\n* 초등: 태블릿\n📚 교과 연계(수학-머신러닝): 교과 현수막\n🌿 지속가능발전(머신러닝으로 그려보는 지속가능한 미래): 지속가능 현수막" },
     { id:"p08", name:"AI 운동·게임", notes:"태블릿" },
-    { id:"p09", name:"인공지능 딥러닝", notes:"태블릿" },
+    { id:"p09", name:"인공지능 딥러닝", notes:"태블릿\n📚 교과 연계(수학-딥러닝): 교과 현수막" },
     { id:"p10", name:"똑똑한 상상이룸", notes:"노트북, 충전기·마우스, 멀티탭, 폼보드, 똑상(1)키트(아두이노, LED, 서보모터, 아두이노 케이블, 점퍼 케이블)\n똑상(2)키트(글루건, 싸인펜·색연필, 매직, 수수깡, 칼·가위, 테이프, 30cm 자)\n🔎 소모품 : 폼보드, 수수깡" },
-    { id:"p11", name:"프롬프트 엔지니어", notes:"노트북, 충전기·마우스, 멀티탭, A4용지\n* 컴퓨터실: A4용지" },
+    { id:"p11", name:"프롬프트 엔지니어", notes:"노트북, 충전기·마우스, 멀티탭, A4용지\n* 컴퓨터실: A4용지\n📚 교과 연계(국어-생성형 AI): 교과 현수막\n🌿 지속가능발전(AI로 만드는 나만의 홈페이지): 지속가능 현수막" },
     { id:"p12", name:"디지털기기 활용", notes:"-" },
     { id:"p13", name:"디지털 리터러시", notes:"유인물-카피라이터, 전자기기(태블릿·스마트폰)" },
     { id:"p14", name:"빅데이터", notes:"포스트잇, 전자기기(태블릿·스마트폰)" },
     { id:"p15", name:"빅데이터 경제", notes:"빅경 키트(양세찬 게임+주식 유인물, 보드마카)\n포스트잇" },
     { id:"p16", name:"빅데이터 분석", notes:"유인물, 전자기기(태블릿·스마트폰)" },
     { id:"p17", name:"정보보안", notes:"금고, 포스트잇, 전자기기(태블릿·스마트폰)\n⚠️ 확인: ZEP 비밀번호 확인 및 금고 간식 보상 세팅 必" },
-    { id:"p18", name:"RSA 암호", notes:"유인물-RSA 암호 제작, 전자기기(태블릿·스마트폰)" },
+    { id:"p18", name:"RSA 암호", notes:"유인물-RSA 암호 제작, 전자기기(태블릿·스마트폰)\n📚 교과 연계(수학-RSA암호): 교과 현수막" },
     { id:"p19", name:"메타버스", notes:"탈출용 머지큐브, 전자기기(태블릿·스마트폰)" },
-    { id:"p20", name:"VR", notes:"카드보드(갈색/파랑), 돌돌이 테이프, 리필용 테이트,\n전자기기(태블릿·스마트폰)\n⚠️ 확인: 카드보드 학급 파악" },
+    { id:"p20", name:"VR", notes:"카드보드(갈색/파랑), 돌돌이 테이프, 리필용 테이트,\n전자기기(태블릿·스마트폰)\n⚠️ 확인: 카드보드 학급 파악\n📚 교과 연계(수학-VR): 교과 현수막\n🌿 지속가능발전(VR로 그리는 지속가능한 미래도시): 지속가능 현수막" },
     { id:"p21", name:"AR", notes:"머지큐브, 전자기기(태블릿·스마트폰)" },
     { id:"p22", name:"VR+홀로그램", notes:"카드보드(갈색/파랑), 돌돌이 테이프, 홀로그램\n전자기기(태블릿·스마트폰)" },
     { id:"p23", name:"콘텐츠 기획", notes:"유인물-콘텐츠 기획" },
     { id:"p24", name:"스토리 기획", notes:"딕싯, 유인물-스토리 기획" },
     { id:"p25", name:"크리에이티브 광고 기획", notes:"과자, 크로마키, 유인물-광고 기획\n전자기기(태블릿·스마트폰)" },
-    { id:"p26", name:"미디어_광고 제작/더빙", notes:"전자기기(태블릿·스마트폰)" },
+    { id:"p26", name:"미디어 광고 제작·더빙", notes:"전자기기(태블릿·스마트폰)" },
     { id:"p27", name:"게임 기획", notes:"노트북, 충전기·마우스, 멀티탭" },
     { id:"p28", name:"게임 개발(엔트리)", notes:"노트북, 충전기·마우스, 멀티탭\n* 초등 : 태블릿" },
-    { id:"p29", name:"앱 개발", notes:"전자기기(태블릿·스마트폰)" },
+    { id:"p29", name:"앱 개발", notes:"전자기기(태블릿·스마트폰)\n🌿 지속가능발전(지구를 지키는 생활습관 앱 제작): 지속가능 현수막" },
     { id:"p30", name:"앱 디자인", notes:"전자기기(태블릿·스마트폰)" },
-    { id:"p31", name:"시뮬레이션", notes:"노트북, 충전기·마우스, 멀티탭" },
+    { id:"p31", name:"시뮬레이션", notes:"노트북, 충전기·마우스, 멀티탭\n📚 교과 연계(물리-시뮬레이션): 교과 현수막" },
     { id:"p32", name:"메이커", notes:"네오봇 키트, 네오봇 통(2인 1조), 전자기기(태블릿·스마트폰)" },
     { id:"p33", name:"로고 디자인", notes:"포토프린터, 카트리지, 멀티탭, 전자기기(태블릿·스마트폰)\n⚠️ 확인: 포토프린터용 스마트폰 충전 확인" },
     { id:"p34", name:"애니메이터", notes:"전자기기(태블릿·스마트폰)" },
-    { id:"p35", name:"시각디자인(퀴버)", notes:"퀴버 키트(유인물-도안, 색연필), 전자기기(태블릿·스마트폰)\n🔎 소모품: 카트리지(잉크, 용지) \n⚠️ 확인: 인원에 따른 유인물 확인" },
+    { id:"p35", name:"시각디자인(퀴버)", notes:"퀴버 키트(유인물-도안, 색연필), 전자기기(태블릿·스마트폰)\n🔎 소모품: 카트리지(잉크, 용지)\n⚠️ 확인: 인원에 따른 유인물 확인" },
     { id:"p36", name:"시각디자인(AI 캐릭터)", notes:"전자기기(태블릿·스마트폰)" },
-    { id:"p37", name:"인포메이션 디자인", notes:"유인물-UI/UX 분석, 전자기기(태블릿·스마트폰)" },
-    { id:"p38", name:"3D 설계 모델링", notes:"3D 키트(3D펜, 어댑터·케이블, 필라멘트, 장갑, 가위, 도안), 멀티탭\n🔎 소모품: 필라멘트" },
-    { id:"p39", name:"3D 설계 모델링(건축)", notes:"3D 키트(펜, 어댑터·케이블, 필라멘트, 장갑, 가위, 도안), 진동기(사용여부 확인필요), 멀티탭" },
-    { id:"p40", name:"로봇", notes:"유킷 or 지무, 유킷통, 배틀맵, 전자기기(태블릿·스마트폰)\n* 네오봇: 자율주행 키트와 동일" },
-    { id:"p41", name:"디지털 헬스", notes:"측정 키트(악력기, 산소포화도, 혈압, 민첩성, 자), AAA건전지, 유인물-디지털헬스" },
-    { id:"p42", name:"자율주행", notes:"네오봇, 네오봇통(4인 1조), 주행맵, 전자기기(태블릿·스마트폰)" },
+    { id:"p37", name:"인포메이션 디자인", notes:"유인물-UI/UX 분석, 전자기기(태블릿·스마트폰)\n📚 교과 연계(미술-인포메이션 디자인): 교과 현수막\n🌿 지속가능발전(지속가능발전 디자인 랩): 지속가능 현수막" },
+    { id:"p38", name:"3D설계 모델링", notes:"3D 키트(3D펜, 어댑터·케이블, 필라멘트, 장갑, 가위, 도안), 멀티탭\n🔎 소모품: 필라멘트\n🌿 지속가능발전(3D펜으로 만드는 친환경 구조물): 지속가능 현수막" },
+    { id:"p39", name:"3D설계 건축", notes:"3D 키트(펜, 어댑터·케이블, 필라멘트, 장갑, 가위, 도안), ⚠️진동기 (사용여부 확인),멀티탭\n📚 교과 연계(과학-3D설계 건축): 교과 현수막" },
+    { id:"p40", name:"로봇", notes:"유킷 or 지무, 유킷통, 배틀맵, 전자기기(태블릿·스마트폰)\n* 네오봇: 자율주행 키트와 동일\n📚 교과 연계(물리-로봇): 교과 현수막" },
+    { id:"p41", name:"디지털 헬스", notes:"측정 키트(악력기, 산소포화도, 혈압, 민첩성, 자), AAA건전지, 유인물-디지털헬스\n🌿 지속가능발전(스마트 건강 연구소): 지속가능 현수막" },
+    { id:"p42", name:"자율주행", notes:"네오봇, 네오봇통(4인 1조), 주행맵, 전자기기(태블릿·스마트폰)\n🌿 지속가능발전(친환경 도시를 위한 자율주행): 지속가능 현수막" },
     { id:"p43", name:"스타트업 설계", notes:"전자기기(태블릿·스마트폰)" },
     { id:"p44", name:"IMC(통합 마케팅 커뮤니케이션)", notes:"IMC 키트(화이트보드, 보드마카, 상세표), 유인물-IMC견적, 전자기기(태블릿·스마트폰)" },
-    { id:"p45", name:"경제 전략", notes:"유인물-경제전략, 경제전략 키트(판사봉, 마이크)" },
-    { id:"p46", name:"정책 연구", notes:"유인물-정책 점수표" },
-    { id:"p47", name:"바이오 파이썬", notes:"전자기기(태블릿·스마트폰)" },
+    { id:"p45", name:"경제 전략", notes:"유인물-경제전략, 경제전략 키트(판사봉, 마이크)\n📚 교과 연계(사회-경제전략): 교과 현수막" },
+    { id:"p46", name:"정책 연구", notes:"유인물-정책 점수표\n📚 교과 연계(사회-정책 연구): 교과 현수막" },
+    { id:"p47", name:"바이오 파이썬", notes:"전자기기(태블릿·스마트폰)\n📚 교과 연계(생명-바이오 파이썬): 교과 현수막" },
+    { id:"p48", name:"모빌리티", notes:"노트북, 충전기·마우스, 멀티탭, 라인트레이서 확인필요" },
   ];
 
-  const TABLET_PER_PERSON = new Set([
+  // =========================
+  // 부스용 프로그램
+  // 여기에 나중에 별도 목록 넣으면 됨
+  // =========================
+  const BOOTH_PROGRAM_MASTER = [
+    // 예시
+    // { id:"b01", name:"부스명", notes:"부스용 교구 메모" },
+  ];
+
+  const TABLET_PER_PERSON_LESSON = new Set([
     "반도체", "AI 운동·게임", "게임 개발(엔트리)",
-    "로고 디자인", "애니메이터", "시각디자인(퀴버/AI 캐릭터)", "인포메이션 디자인"
+    "로고 디자인", "애니메이터", "시각디자인(퀴버)", "시각디자인(AI 캐릭터)", "인포메이션 디자인"
   ]);
 
-  const LAPTOP_HALF = new Set([
-    "의공학", "머신러닝/인공지능", "똑똑한 상상이룸"
+  const LAPTOP_HALF_LESSON = new Set([
+    "의공학", "머신러닝", "똑똑한 상상이룸", "모빌리티"
   ]);
 
-  const LAPTOP_PER_PERSON = new Set([
+  const LAPTOP_PER_PERSON_LESSON = new Set([
     "프롬프트 엔지니어", "시뮬레이션"
   ]);
 
-  const SMARTPHONE_PER_PERSON = new Set([
+  const SMARTPHONE_PER_PERSON_LESSON = new Set([
     "스마트 팩토리", "로봇", "자율주행", "VR+홀로그램", "앱 개발"
   ]);
 
-  const DEFAULT_STATE = {
-    meta: { school:"", session:"", date:"", people:0 },
-    selected: [],
-    programData: {},
-    totalsOverrides: {},
-    extrasDevices: { laptop:0, tablet:0, smartphone:0 },
-    extras: [
-      { item:"카트", qty:1 },
-      { item:"생수", qty:1 },
-      { item:"현수막", qty:1 },
-      { item:"HDMI선", qty:1 },
-    ]
+  // 부스용 자동 규칙은 아직 비워둠
+  const TABLET_PER_PERSON_BOOTH = new Set([]);
+  const LAPTOP_HALF_BOOTH = new Set([]);
+  const LAPTOP_PER_PERSON_BOOTH = new Set([]);
+  const SMARTPHONE_PER_PERSON_BOOTH = new Set([]);
+
+  const DEFAULT_MODE_DATA = {
+    lesson: {
+      meta: { school:"", session:"", date:"", people:0 },
+      selected: [],
+      programData: {},
+      totalsOverrides: {},
+      extrasDevices: { laptop:0, tablet:0, smartphone:0 },
+      extras: [
+        { item:"카트", qty:1 },
+        { item:"생수", qty:1 },
+        { item:"현수막(진로/교과/지속)", qty:1 },
+        { item:"HDMI선", qty:1 },
+      ]
+    },
+    booth: {
+      meta: { school:"", session:"", date:"", people:0 },
+      selected: [],
+      programData: {},
+      totalsOverrides: {},
+      extrasDevices: { laptop:0, tablet:0, smartphone:0 },
+      extras: [
+        // 부스용 기본 추가항목은 나중에 수정
+      ]
+    }
   };
 
   function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 
-  function getAutoDeviceDefaults(programName, people){
+  function getProgramsByMode(mode){
+    return mode === "lesson" ? LESSON_PROGRAM_MASTER : BOOTH_PROGRAM_MASTER;
+  }
+
+  function getSetsByMode(mode){
+    if(mode === "lesson"){
+      return {
+        tablet: TABLET_PER_PERSON_LESSON,
+        laptopHalf: LAPTOP_HALF_LESSON,
+        laptopPer: LAPTOP_PER_PERSON_LESSON,
+        smartphone: SMARTPHONE_PER_PERSON_LESSON
+      };
+    }
+    return {
+      tablet: TABLET_PER_PERSON_BOOTH,
+      laptopHalf: LAPTOP_HALF_BOOTH,
+      laptopPer: LAPTOP_PER_PERSON_BOOTH,
+      smartphone: SMARTPHONE_PER_PERSON_BOOTH
+    };
+  }
+
+  function getModeLabel(mode){
+    return mode === "lesson" ? "수업용" : "부스용";
+  }
+
+  function getAutoDeviceDefaults(mode, programName, people){
     const p = Math.max(0, Number(people)||0);
+    const sets = getSetsByMode(mode);
     let laptop = 0;
     let tablet = 0;
     let smartphone = 0;
 
-    if(TABLET_PER_PERSON.has(programName)) tablet = p;
-    if(LAPTOP_HALF.has(programName)) laptop = Math.ceil(p / 2);
-    if(LAPTOP_PER_PERSON.has(programName)) laptop = p;
-    if(SMARTPHONE_PER_PERSON.has(programName)) smartphone = p;
+    if(sets.tablet.has(programName)) tablet = p;
+    if(sets.laptopHalf.has(programName)) laptop = Math.ceil(p / 2);
+    if(sets.laptopPer.has(programName)) laptop = p;
+    if(sets.smartphone.has(programName)) smartphone = p;
 
     return { laptop, tablet, smartphone };
   }
 
-  function makeDefaultProgramData(program, people){
-    const auto = getAutoDeviceDefaults(program.name, people);
+  function makeDefaultProgramData(mode, program, people){
+    const auto = getAutoDeviceDefaults(mode, program.name, people);
     return {
       students: Number.isFinite(people) ? people : 0,
       notes: program.notes || "",
@@ -719,43 +807,91 @@
     if(typeof d.smartphone !== "number") d.smartphone = 0;
   }
 
-  function initFromDefault(base){
+  function buildModeData(mode){
+    const base = deepClone(DEFAULT_MODE_DATA[mode]);
     const people = clampInt(base.meta.people);
-    for(const p of PROGRAM_MASTER){
-      base.programData[p.id] = makeDefaultProgramData(p, people);
+    const programs = getProgramsByMode(mode);
+    for(const p of programs){
+      base.programData[p.id] = makeDefaultProgramData(mode, p, people);
     }
     return base;
+  }
+
+  function initState(){
+    return {
+      mode: "lesson",
+      lesson: buildModeData("lesson"),
+      booth: buildModeData("booth")
+    };
   }
 
   function loadState(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
-      const base = deepClone(DEFAULT_STATE);
-      if(!raw) return initFromDefault(base);
+      if(!raw) return initState();
 
       const parsed = JSON.parse(raw);
-      base.meta = { ...base.meta, ...(parsed.meta||{}) };
-      base.selected = Array.isArray(parsed.selected) ? parsed.selected : base.selected;
-      base.programData = parsed.programData || base.programData;
-      base.totalsOverrides = parsed.totalsOverrides || {};
-      base.extrasDevices = parsed.extrasDevices || base.extrasDevices;
-      base.extras = Array.isArray(parsed.extras) ? parsed.extras : base.extras;
 
-      for(const p of PROGRAM_MASTER){
-        if(!base.programData[p.id]){
-          base.programData[p.id] = makeDefaultProgramData(p, clampInt(base.meta.people));
-        }else{
-          normalizeProgramData(base.programData[p.id], p);
+      // 새 구조
+      if(parsed && parsed.mode && parsed.lesson && parsed.booth){
+        const base = initState();
+        base.mode = parsed.mode === "booth" ? "booth" : "lesson";
+        base.lesson = { ...base.lesson, ...(parsed.lesson || {}) };
+        base.booth = { ...base.booth, ...(parsed.booth || {}) };
+
+        for(const mode of ["lesson","booth"]){
+          const programs = getProgramsByMode(mode);
+          const current = base[mode];
+
+          current.meta = { school:"", session:"", date:"", people:0, ...(current.meta||{}) };
+          current.selected = Array.isArray(current.selected) ? current.selected : [];
+          current.programData = current.programData || {};
+          current.totalsOverrides = current.totalsOverrides || {};
+          current.extrasDevices = current.extrasDevices || { laptop:0, tablet:0, smartphone:0 };
+          current.extras = Array.isArray(current.extras) ? current.extras : deepClone(DEFAULT_MODE_DATA[mode].extras);
+
+          for(const p of programs){
+            if(!current.programData[p.id]){
+              current.programData[p.id] = makeDefaultProgramData(mode, p, clampInt(current.meta.people));
+            }else{
+              normalizeProgramData(current.programData[p.id], p);
+            }
+          }
         }
+        return base;
       }
-      return base;
+
+      // 구버전 마이그레이션: 기존 데이터는 수업용으로 옮김
+      if(parsed && parsed.meta && parsed.programData){
+        const migrated = initState();
+        migrated.mode = "lesson";
+        migrated.lesson.meta = { ...migrated.lesson.meta, ...(parsed.meta || {}) };
+        migrated.lesson.selected = Array.isArray(parsed.selected) ? parsed.selected : [];
+        migrated.lesson.programData = parsed.programData || {};
+        migrated.lesson.totalsOverrides = parsed.totalsOverrides || {};
+        migrated.lesson.extrasDevices = parsed.extrasDevices || { laptop:0, tablet:0, smartphone:0 };
+        migrated.lesson.extras = Array.isArray(parsed.extras) ? parsed.extras : deepClone(DEFAULT_MODE_DATA.lesson.extras);
+
+        for(const p of LESSON_PROGRAM_MASTER){
+          if(!migrated.lesson.programData[p.id]){
+            migrated.lesson.programData[p.id] = makeDefaultProgramData("lesson", p, clampInt(migrated.lesson.meta.people));
+          }else{
+            normalizeProgramData(migrated.lesson.programData[p.id], p);
+          }
+        }
+
+        return migrated;
+      }
+
+      return initState();
     }catch{
-      const base = deepClone(DEFAULT_STATE);
-      return initFromDefault(base);
+      return initState();
     }
   }
 
-  function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
 
   function escapeHtml(s){
     return String(s)
@@ -767,6 +903,14 @@
   }
 
   let state = loadState();
+
+  function getCurrentData(){
+    return state[state.mode];
+  }
+
+  function getCurrentPrograms(){
+    return getProgramsByMode(state.mode);
+  }
 
   const elSchool = document.getElementById("school");
   const elSession = document.getElementById("session");
@@ -785,12 +929,43 @@
   const elPreviewBox = document.getElementById("previewBox");
   const elPrintArea = document.getElementById("printArea");
 
+  const elModeLesson = document.getElementById("modeLesson");
+  const elModeBooth = document.getElementById("modeBooth");
+
   const tabAssign = document.getElementById("tabAssign");
   const tabTotals = document.getElementById("tabTotals");
   const tabPreview = document.getElementById("tabPreview");
   const panelAssign = document.getElementById("panelAssign");
   const panelTotals = document.getElementById("panelTotals");
   const panelPreview = document.getElementById("panelPreview");
+
+  const modeLabelAssign = document.getElementById("modeLabelAssign");
+  const modeHelpAssign = document.getElementById("modeHelpAssign");
+  const modeHelpTotals = document.getElementById("modeHelpTotals");
+
+  function setMode(mode){
+    state.mode = mode === "booth" ? "booth" : "lesson";
+    saveState();
+    updateModeButtons();
+    render();
+  }
+
+  function updateModeButtons(){
+    elModeLesson.classList.toggle("active", state.mode === "lesson");
+    elModeBooth.classList.toggle("active", state.mode === "booth");
+    modeLabelAssign.textContent = getModeLabel(state.mode);
+
+    if(state.mode === "lesson"){
+      modeHelpAssign.textContent = "노트북/태블릿/스마트폰/인원은 한 줄, 메모는 아래에 입력합니다.";
+      modeHelpTotals.textContent = "노트북/태블릿/스마트폰은 항상 표시됩니다. (여분도 여기서 입력 가능)";
+    }else{
+      modeHelpAssign.textContent = "부스용 목록 기준으로 별도 배정됩니다.";
+      modeHelpTotals.textContent = "부스용 총합이 별도로 계산됩니다.";
+    }
+  }
+
+  elModeLesson.onclick = ()=>setMode("lesson");
+  elModeBooth.onclick = ()=>setMode("booth");
 
   function setTab(which){
     const all = [
@@ -811,28 +986,30 @@
   tabPreview.onclick = ()=>setTab("preview");
 
   function bindMeta(){
-    elSchool.value = state.meta.school || "";
-    elSession.value = state.meta.session || "";
-    elDate.value = state.meta.date || "";
-    elPeople.value = Number(state.meta.people||0);
+    const current = getCurrentData();
+
+    elSchool.value = current.meta.school || "";
+    elSession.value = current.meta.session || "";
+    elDate.value = current.meta.date || "";
+    elPeople.value = Number(current.meta.people||0);
 
     elSchool.oninput = ()=>{
-      state.meta.school = elSchool.value;
+      getCurrentData().meta.school = elSchool.value;
       saveState();
       renderPreviewOnly();
     };
     elSession.oninput = ()=>{
-      state.meta.session = elSession.value;
+      getCurrentData().meta.session = elSession.value;
       saveState();
       renderPreviewOnly();
     };
     elDate.oninput = ()=>{
-      state.meta.date = elDate.value;
+      getCurrentData().meta.date = elDate.value;
       saveState();
       renderPreviewOnly();
     };
     elPeople.oninput = ()=>{
-      state.meta.people = clampInt(elPeople.value);
+      getCurrentData().meta.people = clampInt(elPeople.value);
       saveState();
       renderPreviewOnly();
     };
@@ -840,16 +1017,25 @@
 
   function getFilteredPrograms(){
     const q = (elSearch.value||"").trim().toLowerCase();
-    if(!q) return PROGRAM_MASTER;
-    return PROGRAM_MASTER.filter(p=>p.name.toLowerCase().includes(q));
+    const programs = getCurrentPrograms();
+    if(!q) return programs;
+    return programs.filter(p=>p.name.toLowerCase().includes(q));
   }
 
   function renderProgramList(){
+    const current = getCurrentData();
     const list = getFilteredPrograms();
-    elPickedCount.textContent = String(state.selected.length);
+    const programs = getCurrentPrograms();
+
+    elPickedCount.textContent = String(current.selected.length);
+
+    if(programs.length === 0){
+      elProgramList.innerHTML = `<div class="emptyBox">부스용 프로그램 목록이 아직 비어 있어요.</div>`;
+      return;
+    }
 
     elProgramList.innerHTML = list.map(p=>{
-      const checked = state.selected.includes(p.id);
+      const checked = current.selected.includes(p.id);
       return `
         <label class="item">
           <input type="checkbox" data-pick="${escapeHtml(p.id)}" ${checked ? "checked":""} />
@@ -860,27 +1046,28 @@
 
     elProgramList.querySelectorAll('input[data-pick]').forEach(chk=>{
       chk.addEventListener("change", ()=>{
+        const currentData = getCurrentData();
         const id = chk.getAttribute("data-pick");
         const on = chk.checked;
 
-        if(on && !state.selected.includes(id)){
-          state.selected.push(id);
+        if(on && !currentData.selected.includes(id)){
+          currentData.selected.push(id);
 
-          const p = PROGRAM_MASTER.find(x=>x.id===id);
-          const people = clampInt(state.meta.people);
-          const d = makeDefaultProgramData(p, people);
+          const p = getCurrentPrograms().find(x=>x.id===id);
+          const people = clampInt(currentData.meta.people);
+          const d = makeDefaultProgramData(state.mode, p, people);
 
-          state.programData[id] = {
-            ...state.programData[id],
+          currentData.programData[id] = {
+            ...currentData.programData[id],
             ...d,
-            notes: (state.programData[id] && state.programData[id].notes && state.programData[id].notes.trim())
-              ? state.programData[id].notes
+            notes: (currentData.programData[id] && currentData.programData[id].notes && currentData.programData[id].notes.trim())
+              ? currentData.programData[id].notes
               : d.notes
           };
         }
 
-        if(!on && state.selected.includes(id)){
-          state.selected = state.selected.filter(x=>x!==id);
+        if(!on && currentData.selected.includes(id)){
+          currentData.selected = currentData.selected.filter(x=>x!==id);
         }
 
         saveState();
@@ -890,11 +1077,17 @@
   }
 
   function renderAssign(){
-    const selected = state.selected
-      .map(id=>PROGRAM_MASTER.find(p=>p.id===id))
+    const current = getCurrentData();
+    const selected = current.selected
+      .map(id=>getCurrentPrograms().find(p=>p.id===id))
       .filter(Boolean);
 
     elSelectedCount2.textContent = String(selected.length);
+
+    if(getCurrentPrograms().length === 0){
+      elAssignCards.innerHTML = `<div class="emptyBox">부스용 프로그램 목록을 넣으면 여기에 같은 화면으로 표시돼요.</div>`;
+      return;
+    }
 
     if(selected.length===0){
       elAssignCards.innerHTML = `<div class="help">왼쪽에서 프로그램을 선택하면 이곳에 카드가 생성됩니다.</div>`;
@@ -902,7 +1095,7 @@
     }
 
     elAssignCards.innerHTML = selected.map(p=>{
-      const d = state.programData[p.id];
+      const d = current.programData[p.id];
       return `
         <div class="card">
           <div class="cardTitle">
@@ -936,9 +1129,10 @@
 
     elAssignCards.querySelectorAll('input[data-laptop]').forEach(inp=>{
       inp.addEventListener("input", ()=>{
+        const currentData = getCurrentData();
         const id = inp.getAttribute("data-laptop");
-        state.programData[id].laptop = clampInt(inp.value);
-        if(Object.prototype.hasOwnProperty.call(state.totalsOverrides,"노트북")) delete state.totalsOverrides["노트북"];
+        currentData.programData[id].laptop = clampInt(inp.value);
+        if(Object.prototype.hasOwnProperty.call(currentData.totalsOverrides,"노트북")) delete currentData.totalsOverrides["노트북"];
         saveState();
         renderTotals();
         renderPreviewOnly();
@@ -947,9 +1141,10 @@
 
     elAssignCards.querySelectorAll('input[data-tablet]').forEach(inp=>{
       inp.addEventListener("input", ()=>{
+        const currentData = getCurrentData();
         const id = inp.getAttribute("data-tablet");
-        state.programData[id].tablet = clampInt(inp.value);
-        if(Object.prototype.hasOwnProperty.call(state.totalsOverrides,"태블릿")) delete state.totalsOverrides["태블릿"];
+        currentData.programData[id].tablet = clampInt(inp.value);
+        if(Object.prototype.hasOwnProperty.call(currentData.totalsOverrides,"태블릿")) delete currentData.totalsOverrides["태블릿"];
         saveState();
         renderTotals();
         renderPreviewOnly();
@@ -958,9 +1153,10 @@
 
     elAssignCards.querySelectorAll('input[data-phone]').forEach(inp=>{
       inp.addEventListener("input", ()=>{
+        const currentData = getCurrentData();
         const id = inp.getAttribute("data-phone");
-        state.programData[id].smartphone = clampInt(inp.value);
-        if(Object.prototype.hasOwnProperty.call(state.totalsOverrides,"스마트폰")) delete state.totalsOverrides["스마트폰"];
+        currentData.programData[id].smartphone = clampInt(inp.value);
+        if(Object.prototype.hasOwnProperty.call(currentData.totalsOverrides,"스마트폰")) delete currentData.totalsOverrides["스마트폰"];
         saveState();
         renderTotals();
         renderPreviewOnly();
@@ -969,20 +1165,21 @@
 
     elAssignCards.querySelectorAll('input[data-students]').forEach(inp=>{
       inp.addEventListener("input", ()=>{
+        const currentData = getCurrentData();
         const id = inp.getAttribute("data-students");
         const v = clampInt(inp.value);
-        state.programData[id].students = v;
+        currentData.programData[id].students = v;
 
-        const program = PROGRAM_MASTER.find(x=>x.id===id);
-        const auto = getAutoDeviceDefaults(program.name, v);
+        const program = getCurrentPrograms().find(x=>x.id===id);
+        const auto = getAutoDeviceDefaults(state.mode, program.name, v);
 
-        state.programData[id].laptop = auto.laptop;
-        state.programData[id].tablet = auto.tablet;
-        state.programData[id].smartphone = auto.smartphone;
+        currentData.programData[id].laptop = auto.laptop;
+        currentData.programData[id].tablet = auto.tablet;
+        currentData.programData[id].smartphone = auto.smartphone;
 
-        if(Object.prototype.hasOwnProperty.call(state.totalsOverrides,"노트북")) delete state.totalsOverrides["노트북"];
-        if(Object.prototype.hasOwnProperty.call(state.totalsOverrides,"태블릿")) delete state.totalsOverrides["태블릿"];
-        if(Object.prototype.hasOwnProperty.call(state.totalsOverrides,"스마트폰")) delete state.totalsOverrides["스마트폰"];
+        if(Object.prototype.hasOwnProperty.call(currentData.totalsOverrides,"노트북")) delete currentData.totalsOverrides["노트북"];
+        if(Object.prototype.hasOwnProperty.call(currentData.totalsOverrides,"태블릿")) delete currentData.totalsOverrides["태블릿"];
+        if(Object.prototype.hasOwnProperty.call(currentData.totalsOverrides,"스마트폰")) delete currentData.totalsOverrides["스마트폰"];
 
         saveState();
         renderAssign();
@@ -993,8 +1190,9 @@
 
     elAssignCards.querySelectorAll('textarea[data-notes]').forEach(ta=>{
       ta.addEventListener("input", ()=>{
+        const currentData = getCurrentData();
         const id = ta.getAttribute("data-notes");
-        state.programData[id].notes = ta.value;
+        currentData.programData[id].notes = ta.value;
         saveState();
         renderPreviewOnly();
       });
@@ -1002,9 +1200,10 @@
   }
 
   function calcBaseDeviceSums(){
+    const current = getCurrentData();
     const base = { laptop:0, tablet:0, smartphone:0 };
-    for(const id of state.selected){
-      const d = state.programData[id];
+    for(const id of current.selected){
+      const d = current.programData[id];
       if(!d) continue;
       base.laptop += Number(d.laptop||0);
       base.tablet += Number(d.tablet||0);
@@ -1014,6 +1213,7 @@
   }
 
   function calcTotals(){
+    const current = getCurrentData();
     const totals = { "노트북":0, "태블릿":0, "스마트폰":0 };
 
     const base = calcBaseDeviceSums();
@@ -1021,12 +1221,12 @@
     totals["태블릿"] = base.tablet;
     totals["스마트폰"] = base.smartphone;
 
-    const ed = state.extrasDevices || { laptop:0, tablet:0, smartphone:0 };
+    const ed = current.extrasDevices || { laptop:0, tablet:0, smartphone:0 };
     totals["노트북"] += Number(ed.laptop||0);
     totals["태블릿"] += Number(ed.tablet||0);
     totals["스마트폰"] += Number(ed.smartphone||0);
 
-    for(const [k,v] of Object.entries(state.totalsOverrides||{})){
+    for(const [k,v] of Object.entries(current.totalsOverrides||{})){
       totals[k] = Number(v||0);
     }
 
@@ -1034,11 +1234,12 @@
   }
 
   function renderTotals(){
+    const current = getCurrentData();
     const totals = calcTotals();
     const ALWAYS_SHOW = ["노트북","태블릿","스마트폰"];
 
     const keys = Object.keys(totals)
-      .filter(k => ALWAYS_SHOW.includes(k) || Number(totals[k]) > 0 || Object.prototype.hasOwnProperty.call(state.totalsOverrides||{}, k))
+      .filter(k => ALWAYS_SHOW.includes(k) || Number(totals[k]) > 0 || Object.prototype.hasOwnProperty.call(current.totalsOverrides||{}, k))
       .sort((a,b)=>a.localeCompare(b,"ko"));
 
     if(keys.length === 0){
@@ -1046,7 +1247,7 @@
     }else{
       elTotalsTable.innerHTML = keys.map(k=>{
         const isDevice = ALWAYS_SHOW.includes(k);
-        const isManual = Object.prototype.hasOwnProperty.call(state.totalsOverrides||{}, k);
+        const isManual = Object.prototype.hasOwnProperty.call(current.totalsOverrides||{}, k);
 
         return `
           <tr>
@@ -1069,6 +1270,7 @@
 
     elTotalsTable.querySelectorAll('input[data-total]').forEach(inp=>{
       inp.addEventListener("input", ()=>{
+        const currentData = getCurrentData();
         const key = inp.getAttribute("data-total");
         const v = clampInt(inp.value);
 
@@ -1079,12 +1281,12 @@
             key === "태블릿" ? Math.max(0, v - base.tablet) :
                                Math.max(0, v - base.smartphone);
 
-          if(!state.extrasDevices) state.extrasDevices = { laptop:0, tablet:0, smartphone:0 };
-          if(key === "노트북") state.extrasDevices.laptop = extraVal;
-          if(key === "태블릿") state.extrasDevices.tablet = extraVal;
-          if(key === "스마트폰") state.extrasDevices.smartphone = extraVal;
+          if(!currentData.extrasDevices) currentData.extrasDevices = { laptop:0, tablet:0, smartphone:0 };
+          if(key === "노트북") currentData.extrasDevices.laptop = extraVal;
+          if(key === "태블릿") currentData.extrasDevices.tablet = extraVal;
+          if(key === "스마트폰") currentData.extrasDevices.smartphone = extraVal;
 
-          if(Object.prototype.hasOwnProperty.call(state.totalsOverrides, key)) delete state.totalsOverrides[key];
+          if(Object.prototype.hasOwnProperty.call(currentData.totalsOverrides, key)) delete currentData.totalsOverrides[key];
 
           saveState();
           renderTotals();
@@ -1092,8 +1294,8 @@
           return;
         }
 
-        if(v === 0) delete state.totalsOverrides[key];
-        else state.totalsOverrides[key] = v;
+        if(v === 0) delete currentData.totalsOverrides[key];
+        else currentData.totalsOverrides[key] = v;
 
         saveState();
         renderTotals();
@@ -1103,15 +1305,16 @@
 
     elTotalsTable.querySelectorAll('button[data-reset]').forEach(btn=>{
       btn.addEventListener("click", ()=>{
+        const currentData = getCurrentData();
         const key = btn.getAttribute("data-reset");
-        delete state.totalsOverrides[key];
+        delete currentData.totalsOverrides[key];
         saveState();
         renderTotals();
         renderPreviewOnly();
       });
     });
 
-    elExtrasTable.innerHTML = state.extras.map((ex, idx)=>`
+    elExtrasTable.innerHTML = current.extras.map((ex, idx)=>`
       <tr>
         <td><input type="text" data-ex-item="${idx}" value="${escapeHtml(ex.item||"")}" style="width:100%;"></td>
         <td><input type="number" min="0" step="1" data-ex-qty="${idx}" value="${Number(ex.qty||0)}"></td>
@@ -1121,8 +1324,9 @@
 
     elExtrasTable.querySelectorAll('input[data-ex-item]').forEach(inp=>{
       inp.addEventListener("input", ()=>{
+        const currentData = getCurrentData();
         const i = Number(inp.getAttribute("data-ex-item"));
-        state.extras[i].item = inp.value;
+        currentData.extras[i].item = inp.value;
         saveState();
         renderPreviewOnly();
         buildPrintArea();
@@ -1131,8 +1335,9 @@
 
     elExtrasTable.querySelectorAll('input[data-ex-qty]').forEach(inp=>{
       inp.addEventListener("input", ()=>{
+        const currentData = getCurrentData();
         const i = Number(inp.getAttribute("data-ex-qty"));
-        state.extras[i].qty = clampInt(inp.value);
+        currentData.extras[i].qty = clampInt(inp.value);
         saveState();
         renderPreviewOnly();
         buildPrintArea();
@@ -1141,8 +1346,9 @@
 
     elExtrasTable.querySelectorAll('button[data-ex-del]').forEach(btn=>{
       btn.addEventListener("click", ()=>{
+        const currentData = getCurrentData();
         const i = Number(btn.getAttribute("data-ex-del"));
-        state.extras.splice(i,1);
+        currentData.extras.splice(i,1);
         saveState();
         renderTotals();
         renderPreviewOnly();
@@ -1154,8 +1360,9 @@
   }
 
   function buildProgramText(id){
-    const p = PROGRAM_MASTER.find(x=>x.id===id);
-    const d = state.programData[id];
+    const current = getCurrentData();
+    const p = getCurrentPrograms().find(x=>x.id===id);
+    const d = current.programData[id];
     if(!p || !d) return null;
 
     const lines = [];
@@ -1173,56 +1380,57 @@
   }
 
   function buildKakaoText(){
-  const meta = state.meta;
-  const date = (meta.date || "").trim();
-  const school = (meta.school || "").trim();
-  const session = (meta.session || "").trim();
-  const people = Number(meta.people || 0);
+    const current = getCurrentData();
+    const meta = current.meta;
+    const date = (meta.date || "").trim();
+    const school = (meta.school || "").trim();
+    const session = (meta.session || "").trim();
+    const people = Number(meta.people || 0);
 
-  const headerParts = [];
-  if(date) headerParts.push(date);
-  if(school) headerParts.push(school);
-  if(session) headerParts.push(session);
+    const headerParts = [];
+    if(date) headerParts.push(date);
+    if(school) headerParts.push(school);
+    if(session) headerParts.push(session);
 
-  const header = `◆ ${headerParts.join(" ")}${people > 0 ? ` (${people}명)` : ""}`.trim();
+    const header = `◆ ${headerParts.join(" ")}${people > 0 ? ` (${people}명)` : ""}`.trim();
 
-  const blocks = [];
+    const blocks = [];
 
-  for(const id of state.selected){
-    const programBlock = buildProgramText(id);
-    if(!programBlock) continue;
+    for(const id of current.selected){
+      const programBlock = buildProgramText(id);
+      if(!programBlock) continue;
 
-    let text = `✔ ${programBlock.title}\n`;
-    if(programBlock.content) text += `${programBlock.content}\n`;
-    blocks.push(text.trim());
+      let text = `✔ ${programBlock.title}\n`;
+      if(programBlock.content) text += `${programBlock.content}\n`;
+      blocks.push(text.trim());
+    }
+
+    const totals = calcTotals();
+    const totalParts = [];
+    if(Number(totals["노트북"]||0) > 0) totalParts.push(`노트북 ${Number(totals["노트북"])}`);
+    if(Number(totals["스마트폰"]||0) > 0) totalParts.push(`스마트폰 ${Number(totals["스마트폰"])}`);
+    if(Number(totals["태블릿"]||0) > 0) totalParts.push(`태블릿 ${Number(totals["태블릿"])}`);
+
+    if(totalParts.length){
+      blocks.push(`💻 총합 기기\n${totalParts.join(" / ")}`);
+    }
+
+    const extras = current.extras
+      .map(ex => {
+        const item = (ex.item||"").trim();
+        const qty = Number(ex.qty||0);
+        if(!item || qty <= 0) return null;
+        return `- ${item} ${qty}`;
+      })
+      .filter(Boolean)
+      .join("\n");
+
+    if(extras){
+      blocks.push(`💡추가\n${extras}`);
+    }
+
+    return `${header}\n${blocks.join("\n\n")}`.trim();
   }
-
-  const totals = calcTotals();
-  const totalParts = [];
-  if(Number(totals["노트북"]||0) > 0) totalParts.push(`노트북 ${Number(totals["노트북"])}`);
-  if(Number(totals["스마트폰"]||0) > 0) totalParts.push(`스마트폰 ${Number(totals["스마트폰"])}`);
-  if(Number(totals["태블릿"]||0) > 0) totalParts.push(`태블릿 ${Number(totals["태블릿"])}`);
-
-  if(totalParts.length){
-    blocks.push(`💻 총합 기기\n${totalParts.join(" / ")}`);
-  }
-
-  const extras = state.extras
-    .map(ex => {
-      const item = (ex.item||"").trim();
-      const qty = Number(ex.qty||0);
-      if(!item || qty <= 0) return null;
-      return `- ${item} ${qty}`;
-    })
-    .filter(Boolean)
-    .join("\n");
-
-  if(extras){
-    blocks.push(`💡추가\n${extras}`);
-  }
-
-  return `${header}\n${blocks.join("\n\n")}`.trim();
-}
 
   function renderPreviewOnly(){
     elPreviewBox.textContent = buildKakaoText();
@@ -1230,13 +1438,14 @@
   }
 
   function buildPrintArea(){
-    const meta = state.meta;
+    const current = getCurrentData();
+    const meta = current.meta;
     const school = (meta.school||"").trim() || "-";
     const session = (meta.session||"").trim() || "-";
     const date = (meta.date||"").trim() || "-";
     const people = Number(meta.people||0);
 
-    const programBlocks = state.selected
+    const programBlocks = current.selected
       .map(id => buildProgramText(id))
       .filter(Boolean)
       .map(block => `
@@ -1253,7 +1462,7 @@
     if(Number(totals["스마트폰"]||0) > 0) totalParts.push(`스마트폰 ${Number(totals["스마트폰"])}`);
     if(Number(totals["태블릿"]||0) > 0) totalParts.push(`태블릿 ${Number(totals["태블릿"])}`);
 
-    const extras = state.extras
+    const extras = current.extras
       .map(ex => {
         const item = (ex.item||"").trim();
         const qty = Number(ex.qty||0);
@@ -1266,7 +1475,7 @@
     elPrintArea.innerHTML = `
       <div class="printSheet">
         <div class="printHead">
-          <div class="printHeadTitle">교구 점검표</div>
+          <div class="printHeadTitle">${getModeLabel(state.mode)} 교구 점검표</div>
           <div class="printMeta">
             <div>날짜: ${escapeHtml(date)}</div>
             <div>학교명: ${escapeHtml(school)}</div>
@@ -1296,26 +1505,30 @@
 
   function render(){
     bindMeta();
+    updateModeButtons();
     renderProgramList();
     renderAssign();
     renderTotals();
     renderPreviewOnly();
-    elPickedCount.textContent = String(state.selected.length);
+    elPickedCount.textContent = String(getCurrentData().selected.length);
   }
 
   elSearch.addEventListener("input", renderProgramList);
 
   document.getElementById("btnAll").onclick = ()=>{
-    state.selected = PROGRAM_MASTER.map(p=>p.id);
+    const current = getCurrentData();
+    const programs = getCurrentPrograms();
 
-    const people = clampInt(state.meta.people);
-    for(const p of PROGRAM_MASTER){
-      const d = makeDefaultProgramData(p, people);
-      state.programData[p.id] = {
-        ...state.programData[p.id],
+    current.selected = programs.map(p=>p.id);
+
+    const people = clampInt(current.meta.people);
+    for(const p of programs){
+      const d = makeDefaultProgramData(state.mode, p, people);
+      current.programData[p.id] = {
+        ...current.programData[p.id],
         ...d,
-        notes: (state.programData[p.id] && state.programData[p.id].notes && state.programData[p.id].notes.trim())
-          ? state.programData[p.id].notes
+        notes: (current.programData[p.id] && current.programData[p.id].notes && current.programData[p.id].notes.trim())
+          ? current.programData[p.id].notes
           : d.notes
       };
     }
@@ -1325,13 +1538,15 @@
   };
 
   document.getElementById("btnNone").onclick = ()=>{
-    state.selected = [];
+    const current = getCurrentData();
+    current.selected = [];
     saveState();
     render();
   };
 
   document.getElementById("btnAddExtra").onclick = ()=>{
-    state.extras.push({ item:"", qty:0 });
+    const current = getCurrentData();
+    current.extras.push({ item:"", qty:0 });
     saveState();
     renderTotals();
     renderPreviewOnly();
@@ -1353,9 +1568,9 @@
   };
 
   document.getElementById("btnReset").onclick = ()=>{
-    if(!confirm("정말 초기화할까요?")) return;
-    state = initFromDefault(deepClone(DEFAULT_STATE));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if(!confirm(`정말 ${getModeLabel(state.mode)} 데이터만 초기화할까요?`)) return;
+    state[state.mode] = buildModeData(state.mode);
+    saveState();
     render();
   };
 
@@ -1363,5 +1578,3 @@
 </script>
 </body>
 </html>
-
-
